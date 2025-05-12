@@ -4,20 +4,14 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
+		// Use default adapter settings
 		adapter: adapter({
-			// Customize the adapter configuration
-			runtime: 'nodejs18.x',
-			external: ['pdfkit'],
-			// Include files from the static directory
-			copy: [
-				{ from: 'static', to: 'static' },
-				{ from: 'src/lib/fonts', to: 'server/fonts' }
-			]
+			// Only specify what's necessary
+			external: ['pdfkit']
 		}),
 		// Ensure fonts are accessible
 		files: {
-			lib: 'src/lib',
-			assets: 'src/assets'
+			lib: 'src/lib'
 		}
 	}
 };
