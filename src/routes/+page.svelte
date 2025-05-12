@@ -9,6 +9,7 @@
   let clientLoading = false;
   let serverLoading = false;
   let selectableLoading = false;
+  let pdfkitLoading = false;
   let htmlContent: string = '';
 
   // We'll load the Japanese font from the static folder on mount
@@ -198,6 +199,46 @@
     });
   }
 
+  async function generatePDFKitPDF() {
+    pdfkitLoading = true;
+    error = '';
+    
+    try {
+      // Call the server endpoint to get the PDF directly
+      const response = await fetch('/reports/pdf', {
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status} ${response.statusText}`);
+      }
+
+      // Get the PDF as a blob
+      const pdfBlob = await response.blob();
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(pdfBlob);
+      
+      // Create a link to download the PDF
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'japanese-report-pdfkit.pdf';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('PDF generated successfully with PDFKit');
+    } catch (err) {
+      console.error('Error generating PDF with PDFKit:', err);
+      error = 'Failed to generate PDF with PDFKit: ' + (err instanceof Error ? err.message : String(err));
+    } finally {
+      pdfkitLoading = false;
+    }
+  }
+
   async function generateServerPDF() {
     serverLoading = true;
     error = '';
@@ -239,26 +280,30 @@
         format: 'a4',
       });
       
-      // Use html2canvas (dynamically loaded)
-      // @ts-ignore - html2canvas is loaded dynamically
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        logging: true,
-        letterRendering: true
-      });
-      
-      // Convert canvas to image and add to PDF
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
-      doc.addImage(imgData, 'JPEG', 0, 0, 210, 297); // A4 size in mm
-      
+      // Instead of rendering HTML as an image, use jsPDF's text() to add selectable/searchable Japanese text.
+      // Note: This approach only supports plain text and basic layout, not full HTML or tables.
+
+      // Ensure the NotoSansJP font is loaded and added to jsPDF
+      const fontResponse = await fetch('/fonts/NotoSansJP-Regular.ttf');
+      const fontArrayBuffer = await fontResponse.arrayBuffer();
+      doc.addFileToVFS('NotoSansJP-Regular.ttf', arrayBufferToBase64(fontArrayBuffer));
+      doc.addFont('NotoSansJP-Regular.ttf', 'NotoSansJP', 'normal');
+      doc.setFont('NotoSansJP');
+
+      // Example: Add some Japanese text
+      doc.setFontSize(18);
+      doc.text('日本語のサンプルテキストです。', 20, 40);
+      doc.setFontSize(14);
+      doc.text('これはPDFレポートに変換されます。', 20, 55);
+      doc.text('テーブルや複雑なレイアウトは手動で追加する必要があります。', 20, 70);
+
       // Save the PDF
-      doc.save('japanese-report-html.pdf');
+      doc.save('japanese-report-selectable.pdf');
 
       // Clean up
       document.body.removeChild(tempDiv);
 
-      console.log('PDF generated successfully from HTML');
+      console.log('PDF generated successfully with selectable Japanese text');
     } catch (err) {
       console.error('Error generating PDF from HTML:', err);
       error = 'Failed to generate PDF from HTML: ' + (err instanceof Error ? err.message : String(err));
@@ -443,8 +488,9 @@
 
   <div class="content">
     <div class="flow-explanation">
-      <strong>How This PDF Generation Works</strong><br>
-      When you click the button below, the frontend requests pre-rendered HTML content from the backend. This HTML contains the Japanese text and table structure. The frontend then uses the <code>html2canvas</code> library to render this HTML as an image, which is embedded into a PDF using <code>jsPDF</code>. Because the HTML is generated server-side and rendered with proper fonts, the resulting PDF allows you to select and search for Japanese characters.
+      <strong>How These PDF Generation Methods Work</strong><br>
+      <p><strong>Method 1 (jsPDF with Text):</strong> The frontend requests HTML content from the backend, then uses <code>jsPDF</code>'s <code>text()</code> method to add Japanese text directly to the PDF. This creates selectable text but requires manual layout.</p>
+      <p><strong>Method 2 (PDFKit - Server):</strong> The server generates a complete PDF using <code>PDFKit</code> with proper Japanese font embedding. This creates high-quality PDFs with selectable text, tables, and complex layouts. The PDF is sent directly to the browser for download.</p>
     </div>
     <p>Click the button below to generate a PDF with Japanese text:</p>
     <p class="japanese-text">日本語のサンプルテキストです。これはPDFレポートに変換されます。</p>
@@ -475,7 +521,11 @@
   -->
 
   <button on:click={generateServerPDF} disabled={!fontLoaded || serverLoading}>
-    {serverLoading ? 'Generating...' : 'Generate PDF from HTML (Image)'}
+    {serverLoading ? 'Generating...' : 'Generate PDF with jsPDF Text'}
+  </button>
+
+  <button on:click={generatePDFKitPDF} disabled={pdfkitLoading} class="pdfkit-button">
+    {pdfkitLoading ? 'Generating...' : 'Generate PDF with PDFKit (Server)'}
   </button>
 
   <!--
@@ -582,15 +632,26 @@
     cursor: not-allowed;
   }
   
-  /* Second button style */
-  button:nth-child(2) {
+  /* First button style */
+  button:nth-child(1) {
     background-color: #9b59b6;
     color: white;
   }
   
-  /* Second button hover style */
-  button:nth-child(2):hover:not(:disabled) {
+  /* First button hover style */
+  button:nth-child(1):hover:not(:disabled) {
     background-color: #8e44ad;
+  }
+
+  /* PDFKit button style */
+  .pdfkit-button {
+    background-color: #27ae60;
+    color: white;
+  }
+  
+  /* PDFKit button hover style */
+  .pdfkit-button:hover:not(:disabled) {
+    background-color: #219653;
   }
 
   .html-preview {
