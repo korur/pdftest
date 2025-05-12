@@ -1,6 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 export const GET: RequestHandler = async () => {
   try {
@@ -15,38 +18,20 @@ export const GET: RequestHandler = async () => {
       }
     });
 
-    // Register the Japanese font
+    // Simple and direct approach to font loading that works in deployment
     try {
-      // Try multiple possible paths to find the font
-      const possiblePaths = [
-        'static/fonts/NotoSansJP-Regular.ttf',
-        'static/NotoSansJP-Regular.ttf',
-        'static/fonts/NotoSansJP/NotoSansJP-Regular.ttf',
-        '/fonts/NotoSansJP-Regular.ttf'
-      ];
+      // In production deployments, the static directory is typically available at the root
+      const fontPath = 'static/fonts/NotoSansJP-Regular.ttf';
       
-      // Use the first path that works
-      let fontLoaded = false;
-      for (const fontPath of possiblePaths) {
-        try {
-          doc.registerFont('NotoSansJP', fontPath);
-          console.log(`Successfully loaded font from: ${fontPath}`);
-          fontLoaded = true;
-          break;
-        } catch (fontErr) {
-          console.log(`Failed to load font from: ${fontPath}`);
-        }
-      }
-      
-      if (!fontLoaded) {
-        // Fallback to a standard font if NotoSansJP can't be loaded
-        console.log('Using fallback font');
-      } else {
-        doc.font('NotoSansJP');
-      }
+      console.log(`Attempting to load font from: ${fontPath}`);
+      doc.registerFont('NotoSansJP', fontPath);
+      doc.font('NotoSansJP');
+      console.log('Successfully registered font');
     } catch (fontErr) {
-      console.error('Error loading font:', fontErr);
-      // Continue without the custom font
+      console.error('Error registering font:', fontErr);
+      console.error('This might be because the font file is not accessible in your deployment.');
+      console.error('Make sure your static/fonts directory is included in your deployment.');
+      // Continue with default font
     }
 
     // Set the initial position
