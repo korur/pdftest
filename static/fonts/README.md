@@ -6,6 +6,6 @@ This directory contains fonts used for PDF generation, especially for multi-lang
 
 - `NotoSansJP-Regular.ttf` - Used for Japanese text in PDFs
 
-## Deployment Note
+## Deployment Note x
 
 These font files must be included in your deployment for proper PDF generation with non-Latin characters. Make sure your deployment configuration includes the `static/fonts` directory.
