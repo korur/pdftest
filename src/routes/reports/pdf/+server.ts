@@ -16,8 +16,38 @@ export const GET: RequestHandler = async () => {
     });
 
     // Register the Japanese font
-    doc.registerFont('NotoSansJP', 'static/fonts/NotoSansJP-Regular.ttf');
-    doc.font('NotoSansJP');
+    try {
+      // Try multiple possible paths to find the font
+      const possiblePaths = [
+        'static/fonts/NotoSansJP-Regular.ttf',
+        'static/NotoSansJP-Regular.ttf',
+        'static/fonts/NotoSansJP/NotoSansJP-Regular.ttf',
+        '/fonts/NotoSansJP-Regular.ttf'
+      ];
+      
+      // Use the first path that works
+      let fontLoaded = false;
+      for (const fontPath of possiblePaths) {
+        try {
+          doc.registerFont('NotoSansJP', fontPath);
+          console.log(`Successfully loaded font from: ${fontPath}`);
+          fontLoaded = true;
+          break;
+        } catch (fontErr) {
+          console.log(`Failed to load font from: ${fontPath}`);
+        }
+      }
+      
+      if (!fontLoaded) {
+        // Fallback to a standard font if NotoSansJP can't be loaded
+        console.log('Using fallback font');
+      } else {
+        doc.font('NotoSansJP');
+      }
+    } catch (fontErr) {
+      console.error('Error loading font:', fontErr);
+      // Continue without the custom font
+    }
 
     // Set the initial position
     doc.fontSize(24).text('日本語レポート (サーバー)', {
@@ -35,26 +65,44 @@ export const GET: RequestHandler = async () => {
       align: 'left'
     });
     
-    // Draw a table
-    const tableTop = doc.y + 10;
-    const tableLeft = 40;
-    const colWidths = [40, 120, 120, 120];
+    // Use a completely different approach for the table
+    // Start with a clean position
+    doc.moveDown(2);
+    const startY = doc.y;
+    
+    // Define table dimensions
+    const margin = 40;
+    const tableWidth = doc.page.width - (margin * 2);
     const rowHeight = 30;
     
-    // Table headers
-    doc.fontSize(10);
-    doc.rect(tableLeft, tableTop, colWidths.reduce((a, b) => a + b, 0), rowHeight).stroke();
-    let currentX = tableLeft;
+    // Define column widths as percentages of table width
+    const colWidths = [
+      tableWidth * 0.1,  // ID (10%)
+      tableWidth * 0.3,  // Name (30%)
+      tableWidth * 0.3,  // Department (30%)
+      tableWidth * 0.3   // Role (30%)
+    ];
     
+    // Draw table header - as a filled rectangle with white text
+    doc.fillColor('#3498db');
+    doc.rect(margin, startY, tableWidth, rowHeight).fill();
+    doc.fillColor('white');
+    doc.fontSize(12);
+    
+    // Draw header text
+    let xPos = margin;
     ['ID', '名前', '部署', '役職'].forEach((header, i) => {
-      doc.text(header, currentX + 5, tableTop + 10);
-      currentX += colWidths[i];
-      if (i < colWidths.length - 1) {
-        doc.moveTo(currentX, tableTop).lineTo(currentX, tableTop + rowHeight).stroke();
-      }
+      doc.text(header, xPos + 5, startY + 10, {
+        width: colWidths[i],
+        align: 'left'
+      });
+      xPos += colWidths[i];
     });
     
-    // Table rows
+    // Reset text color for data rows
+    doc.fillColor('black');
+    
+    // Table data
     const data = [
       { id: '1', name: '田中 太郎', dept: '営業部', role: 'マネージャー' },
       { id: '2', name: '佐藤 花子', dept: '開発部', role: 'シニアエンジニア' },
@@ -63,29 +111,73 @@ export const GET: RequestHandler = async () => {
       { id: '5', name: '伊藤 健太', dept: '財務部', role: 'アナリスト' }
     ];
     
-    let currentY = tableTop + rowHeight;
+    // Draw each row separately with clear spacing
+    let yPos = startY + rowHeight;
     
-    data.forEach((row, rowIndex) => {
-      doc.rect(tableLeft, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight).stroke();
+    // Draw each data row
+    data.forEach((row, i) => {
+      console.log(`Drawing row ${i + 1} at Y position: ${yPos}`);
       
-      // Fill alternate rows with light gray
-      if (rowIndex % 2 === 1) {
-        doc.rect(tableLeft, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight).fill('#f5f5f5');
-        doc.rect(tableLeft, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight).stroke();
+      // Check if we need a new page
+      if (yPos + rowHeight > doc.page.height - margin) {
+        doc.addPage();
+        yPos = margin;
+        console.log('Added new page for table continuation');
       }
       
-      currentX = tableLeft;
+      // Draw row background (alternating colors)
+      if (i % 2 === 1) {
+        doc.fillColor('#f9f9f9');
+        doc.rect(margin, yPos, tableWidth, rowHeight).fill();
+      } else {
+        doc.fillColor('white');
+        doc.rect(margin, yPos, tableWidth, rowHeight).fill();
+      }
       
-      [row.id, row.name, row.dept, row.role].forEach((cell, i) => {
-        doc.text(cell, currentX + 5, currentY + 10);
-        currentX += colWidths[i];
-        if (i < colWidths.length - 1) {
-          doc.moveTo(currentX, currentY).lineTo(currentX, currentY + rowHeight).stroke();
-        }
+      // Draw row border
+      doc.strokeColor('#cccccc');
+      doc.rect(margin, yPos, tableWidth, rowHeight).stroke();
+      
+      // Reset text color
+      doc.fillColor('black');
+      
+      // Draw each cell separately with explicit positioning
+      xPos = margin;
+      
+      // Draw ID cell
+      doc.text(row.id, xPos + 5, yPos + 10, {
+        width: colWidths[0],
+        align: 'left'
+      });
+      xPos += colWidths[0];
+      
+      // Draw name cell
+      doc.text(row.name, xPos + 5, yPos + 10, {
+        width: colWidths[1],
+        align: 'left'
+      });
+      xPos += colWidths[1];
+      
+      // Draw department cell
+      doc.text(row.dept, xPos + 5, yPos + 10, {
+        width: colWidths[2],
+        align: 'left'
+      });
+      xPos += colWidths[2];
+      
+      // Draw role cell
+      doc.text(row.role, xPos + 5, yPos + 10, {
+        width: colWidths[3],
+        align: 'left'
       });
       
-      currentY += rowHeight;
+      // Move to next row position
+      yPos += rowHeight;
     });
+    
+    // Update document position
+    doc.y = yPos + 10;
+    console.log(`Table complete. Final Y position: ${doc.y}`);
     
     doc.moveDown(2);
     doc.fontSize(10).text(`生成日時: ${new Date().toLocaleString('ja-JP')}`, {
