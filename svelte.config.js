@@ -6,7 +6,7 @@ const config = {
 	kit: {
 		adapter: adapter({
 			// Customize the adapter configuration
-			runtime: 'nodejs',
+			runtime: 'nodejs18.x',
 			external: ['pdfkit'],
 			// Include files from the static directory
 			copy: [
