@@ -22,6 +22,7 @@
 		"@tailwindcss/forms": "^0.5.9",
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
+		"@types/html2canvas": "^1.0.0",
 		"@types/node": "^22.15.17",
 		"@types/pdfmake": "^0.2.11",
 		"eslint": "^9.18.0",
@@ -45,7 +46,9 @@
 	},
 	"dependencies": {
 		"@types/jspdf": "^2.0.0",
+		"html2canvas": "^1.4.1",
 		"jspdf": "^3.0.1",
+		"jspdf-html2canvas": "^1.5.2",
 		"pdfmake": "^0.2.20"
 	}
 }
