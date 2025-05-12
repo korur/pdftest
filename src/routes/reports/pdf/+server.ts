@@ -5,6 +5,25 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Get the current file's directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Define possible font paths for both development and production
+const possibleFontPaths = [
+  // Paths for local development
+  path.join(process.cwd(), 'static/fonts/NotoSansJP-Regular.ttf'),
+  path.join(process.cwd(), 'src/lib/fonts/NotoSansJP-Regular.ttf'),
+  
+  // Paths for production deployment
+  path.join(process.cwd(), 'server/fonts/NotoSansJP-Regular.ttf'),
+  path.join(__dirname, '../../../fonts/NotoSansJP-Regular.ttf'),
+  
+  // Fallback paths
+  path.join(__dirname, '../../../../static/fonts/NotoSansJP-Regular.ttf'),
+  'static/fonts/NotoSansJP-Regular.ttf'
+];
+
 export const GET: RequestHandler = async () => {
   try {
     // Create a new PDF document
@@ -18,20 +37,41 @@ export const GET: RequestHandler = async () => {
       }
     });
 
-    // Simple and direct approach to font loading that works in deployment
-    try {
-      // In production deployments, the static directory is typically available at the root
-      const fontPath = 'static/fonts/NotoSansJP-Regular.ttf';
-      
-      console.log(`Attempting to load font from: ${fontPath}`);
-      doc.registerFont('NotoSansJP', fontPath);
-      doc.font('NotoSansJP');
-      console.log('Successfully registered font');
-    } catch (fontErr) {
-      console.error('Error registering font:', fontErr);
-      console.error('This might be because the font file is not accessible in your deployment.');
-      console.error('Make sure your static/fonts directory is included in your deployment.');
-      // Continue with default font
+    // Try to load the font using multiple possible paths
+    let fontLoaded = false;
+    
+    for (const fontPath of possibleFontPaths) {
+      try {
+        if (fs.existsSync(fontPath)) {
+          console.log(`Found font at: ${fontPath}`);
+          doc.registerFont('NotoSansJP', fontPath);
+          doc.font('NotoSansJP');
+          console.log('Successfully registered font');
+          fontLoaded = true;
+          break;
+        }
+      } catch (e) {
+        console.log(`Could not load font from: ${fontPath}`);
+      }
+    }
+    
+    // If we couldn't load the font from any path, use a fallback approach
+    if (!fontLoaded) {
+      try {
+        // Log the current directory and available files for debugging
+        console.log('Current directory:', process.cwd());
+        console.log('__dirname:', __dirname);
+        
+        // Try one more approach - use a direct path that should work in Vercel
+        console.log('Trying fallback approach with direct path');
+        doc.registerFont('NotoSansJP', 'server/fonts/NotoSansJP-Regular.ttf');
+        doc.font('NotoSansJP');
+        console.log('Successfully registered font using fallback approach');
+      } catch (fontErr) {
+        console.error('All font loading attempts failed:', fontErr);
+        console.error('Continuing with default font - Japanese characters may not display correctly');
+        // Continue with default font
+      }
     }
 
     // Set the initial position
